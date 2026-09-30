@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
-import 'dart:async'; //3.1  Importar el timer 5
+import 'dart:async'; // 3.1 Importar el timer
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,35 +21,40 @@ class _LoginScreenState extends State<LoginScreen> {
   SMITrigger? _trigSuccess;
   SMITrigger? _trigFail;
 
-  //3.2 Variable del recorrido de la mirada
+  // 3.2 Variable del recorrido de la mirada
   SMINumber? _numLook;
 
-  //3.3 Timer para detener la mirada al dejar de escribir
+  // 3.3 Timer para detener la mirada al dejar de escribir
   Timer? _typingDebounce;
-
 
   // 2.1 Crear las variables para FocusNode
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
 
-  // 2.2 Listeners (chismosos)
+  // 2.2 Listeners (escuchadores de foco)
   @override
   void initState() {
     super.initState();
 
     _emailFocus.addListener(() {
-      // Verificar que no sea nulo
-      if (_isHandsUp != null) {
-        // Manos abajo en el email
+      if (_emailFocus.hasFocus) {
+        // Al tomar foco el email, el oso mira el texto y baja las manos
+        _isChecking?.change(true);
         _isHandsUp?.change(false);
-        //3.4 Mirada neutra
-        _numLook?.value = 50.0;
+      } else {
+        // Al perder el foco, quita la mirada activa
+        _isChecking?.change(false);
       }
     });
 
     _passwordFocus.addListener(() {
-      // Manos arriba en password
-      _isHandsUp?.change(_passwordFocus.hasFocus);
+      // Manos arriba si la contraseña tiene el foco y está oculta
+      if (_passwordFocus.hasFocus) {
+        _isChecking?.change(false);
+        _isHandsUp?.change(_obscure);
+      } else {
+        _isHandsUp?.change(false);
+      }
     });
   }
 
@@ -58,6 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailFocus.dispose();
     _passwordFocus.dispose();
+    _typingDebounce?.cancel(); // 3.9 Eliminar el timer
     super.dispose();
   }
 
@@ -75,17 +81,13 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox(
                 width: size.width,
                 height: 200,
-
-                // El child se mueve al final del SizedBox
-                // para corregir la advertencia azul
                 child: RiveAnimation.asset(
                   'assets/login-bear.riv',
                   stateMachines: const ['Login Machine'],
 
                   // 1.2 Vincular animación
                   onInit: (artboard) {
-                    _controller =
-                        StateMachineController.fromArtboard(
+                    _controller = StateMachineController.fromArtboard(
                       artboard,
                       'Login Machine',
                     );
@@ -96,53 +98,46 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Agrega el controlador al escenario / tablero
                     artboard.addController(_controller!);
 
-                    // Vinculamos variables
-                    _isChecking =
-                        _controller!.findSMI('isChecking');
-
-                    _isHandsUp =
-                        _controller!.findSMI('isHandsUp');
-
-                    _trigSuccess =
-                        _controller!.findSMI('trigSuccess');
-
-                    _trigFail =
-                        _controller!.findSMI('trigFail');
-                        //3.5 vincular numLook
-                        _numLook = _controller!.findSMI('numLook');
+                    // Vinculamos variables de Rive
+                    _isChecking = _controller!.findSMI('isChecking');
+                    _isHandsUp = _controller!.findSMI('isHandsUp');
+                    _trigSuccess = _controller!.findSMI('trigSuccess');
+                    _trigFail = _controller!.findSMI('trigFail');
+                    _numLook = _controller!.findSMI('numLook');
                   },
                 ),
               ),
 
-              // Para separar espacios
+              // Espacio entre animación y campos
               const SizedBox(height: 10),
 
               // Campo de texto para Email
-              // Con su lógica de Rive integrada
               TextField(
-                // 2.3 Asignar foco al campo de Email
                 focusNode: _emailFocus,
-
                 keyboardType: TextInputType.emailAddress,
-
                 onChanged: (value) {
                   if (_isChecking != null) {
                     // Activar modo mirar el texto
                     _isChecking!.change(true);
-                    //3.6 Implementar numLook
-                    //Ajustes de límites del 0 a 100
-                    //80 es la medida calibración
+
+                    // 3.6 Calcular posición de la mirada según longitud del texto (rango 0 a 100)
                     final look = (value.length / 80.0 * 100.0).clamp(0.0, 100.0);
-                    //Clamp es el rango (abrazadera)
                     _numLook?.value = look;
+
+                    // 3.7 Debounce: si vuelve a teclear, reinicia el temporizador
+                    _typingDebounce?.cancel();
+                    _typingDebounce = Timer(const Duration(seconds: 3), () {
+                      if (!mounted) return;
+                      // Transcurridos 3 seg sin teclear, deshabilita la mirada activa
+                      _isChecking?.change(false);
+                    });
                   }
 
                   if (_isHandsUp != null) {
-                    // No taparse los ojos en el email
+                    // Asegurar manos abajo en el email
                     _isHandsUp!.change(false);
                   }
                 },
-
                 decoration: InputDecoration(
                   hintText: 'Email',
                   prefixIcon: const Icon(Icons.email),
@@ -157,46 +152,38 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // Campo de texto para contraseña
               TextField(
-                // Asignar foco al campo de contraseña
                 focusNode: _passwordFocus,
-
                 obscureText: _obscure,
-
                 onChanged: (value) {
                   if (_isHandsUp != null) {
-                    // Taparse los ojos al escribir la contraseña
-                    _isHandsUp!.change(true);
+                    // Taparse los ojos si la contraseña está oculta
+                    _isHandsUp!.change(_obscure);
                   }
 
                   if (_isChecking != null) {
                     _isChecking!.change(false);
                   }
                 },
-
                 decoration: InputDecoration(
                   hintText: 'Contraseña',
                   prefixIcon: const Icon(Icons.lock),
-
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscure
                           ? Icons.visibility
                           : Icons.visibility_off,
                     ),
-
                     onPressed: () {
                       setState(() {
                         _obscure = !_obscure;
 
-                        // Si muestra la contraseña, baja las manos;
-                        // si la oculta, se tapa los ojos
+                        // Si muestra la contraseña, baja las manos; si la oculta, se tapa los ojos
                         if (_isHandsUp != null) {
                           _isHandsUp!.change(_obscure);
                         }
                       });
                     },
                   ),
-
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
