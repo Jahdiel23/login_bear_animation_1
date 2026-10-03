@@ -12,6 +12,12 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
 
+  //Estado local para la opción "Remember me"
+  bool _rememberMe = false;
+
+  // Bandera (flag) Anti-Spam para bloquear interacción rápida
+  bool _isLoading = false;
+
   // 1.1 Crear el cerebro de la animación
   StateMachineController? _controller;
 
@@ -52,6 +58,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // 4.4 Dar acción al botón
   void _onLogin() {
+    // Protección Anti-Spam (Si la animación/proceso está activo, ignora clics)
+    if (_isLoading) return;
+
+    setState(() {
+      _isLoading = true; // Bloquea clics futuros
+    });
+
     // De lo que escribió el usuario, quitar espacios en blanco
     final email = _emailCtrl.text.trim();
     final pass = _passCtrl.text;
@@ -79,6 +92,15 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       _trigFail?.fire();
     }
+
+    // Desbloquea la UI tras 2 segundos de animación
+    Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    });
   }
 
   // 2.2 Listeners (escuchadores de foco)
@@ -107,7 +129,6 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     });
   }
-
 
   // 2.4 Liberar espacio en memoria
   @override
@@ -138,20 +159,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: RiveAnimation.asset(
                     'assets/login-bear.riv',
                     stateMachines: const ['Login Machine'],
-        
+          
                     // 1.2 Vincular animación
                     onInit: (artboard) {
                       _controller = StateMachineController.fromArtboard(
                         artboard,
                         'Login Machine',
                       );
-        
+          
                       // 1.3 Verificar que inició bien
                       if (_controller == null) return;
-        
+          
                       // Agrega el controlador al escenario / tablero
                       artboard.addController(_controller!);
-        
+          
                       // Vinculamos variables de Rive
                       _isChecking = _controller!.findSMI('isChecking');
                       _isHandsUp = _controller!.findSMI('isHandsUp');
@@ -161,10 +182,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                 ),
-        
+          
                 // Espacio entre animación y campos
                 const SizedBox(height: 10),
-        
+          
                 // Campo de texto para Email
                 TextField(
                   // 4.10 Enlazar controller
@@ -177,11 +198,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (_isChecking != null) {
                       // Activar modo mirar el texto
                       _isChecking!.change(true);
-        
+          
                       // 3.6 Calcular posición de la mirada según longitud del texto (rango 0 a 100)
                       final look = (value.length / 80.0 * 100.0).clamp(0.0, 100.0);
                       _numLook?.value = look;
-        
+          
                       // 3.7 Debounce: si vuelve a teclear, reinicia el temporizador
                       _typingDebounce?.cancel();
                       _typingDebounce = Timer(const Duration(seconds: 3), () {
@@ -190,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         _isChecking?.change(false);
                       });
                     }
-        
+          
                     if (_isHandsUp != null) {
                       // Asegurar manos abajo en el email
                       _isHandsUp!.change(false);
@@ -205,10 +226,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-        
+          
                 // Espacio entre Email y Contraseña
                 const SizedBox(height: 10),
-        
+          
                 // Campo de texto para contraseña
                 TextField(
                   // 4.10 Enlazar controller
@@ -222,7 +243,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Taparse los ojos si la contraseña está oculta
                       _isHandsUp!.change(_obscure);
                     }
-        
+          
                     if (_isChecking != null) {
                       _isChecking!.change(false);
                     }
@@ -240,7 +261,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: () {
                         setState(() {
                           _obscure = !_obscure;
-        
+          
                           // Si muestra la contraseña, baja las manos; si la oculta, se tapa los ojos
                           if (_isHandsUp != null) {
                             _isHandsUp!.change(_obscure);
@@ -254,29 +275,55 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ), 
                 const SizedBox(height: 10),
-        
-                // 4.12 Texto olvidé la contraseña (CORREGIDO)
-                SizedBox(
-                  width: size.width,
-                  child: const Text(
-                    'Forgot password?',
-                    textAlign: TextAlign.right, // Debe ir dentro del Text
-                    style: TextStyle(decoration: TextDecoration.underline), // Debe ir dentro del Text
-                  ),
+          
+                // Fila con "Remember me" y "Forgot password?"
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _rememberMe,
+                          onChanged: _isLoading
+                              ? null // Se inhabilita si la animación está en curso
+                              : (value) {
+                                  setState(() {
+                                    _rememberMe = value ?? false;
+                                  });
+                                },
+                        ),
+                        const Text('Remember me'),
+                      ],
+                    ),
+                    const Text(
+                      'Forgot password?',
+                      style: TextStyle(decoration: TextDecoration.underline),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
-        
-                // 4.13 Boton de login (CORREGIDO)
+          
+                // 4.13 Boton de login (Bloqueado temporalmente durante _isLoading)
                 MaterialButton(
                   minWidth: size.width,
                   height: 50,
                   color: Colors.pinkAccent,
-                  shape: const RoundedRectangleBorder(), // Ahora está vacío y correcto
-                  onPressed: _onLogin, // Debe ir fuera del shape
-                  child: const Text(
-                    'Login',
-                    style: TextStyle(color: Colors.white),
-                  ), // Debe ir fuera del shape
+                  disabledColor: Colors.pinkAccent.withOpacity(0.6),
+                  shape: const RoundedRectangleBorder(),
+                  onPressed: _isLoading ? null : _onLogin, // Se deshabilita si _isLoading == true
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Login',
+                          style: TextStyle(color: Colors.white),
+                        ),
                 ),
                 const SizedBox(height: 10),
                 
