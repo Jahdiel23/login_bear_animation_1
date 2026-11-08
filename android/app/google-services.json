@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "392223178260",
+    "project_id": "login-bear-animation-1",
+    "storage_bucket": "login-bear-animation-1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:392223178260:android:5e5a397ab5bd4ca28c7101",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCSmFFT0UXBXkFwpD8Y2VjT9m75PM1_Dvk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
