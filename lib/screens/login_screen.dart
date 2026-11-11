@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
 import 'dart:async'; // 3.1 Importar el timer
+import 'package:firebase_auth/firebase_auth.dart'; //Conectando el botón con firebase
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.onSignInInProgress});
+
+final ValueChanged<bool>? onSignInInProgress;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -45,6 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String? emailError;
   String? passError;
 
+//Reviso el formato de los campos antes de enviar los datos a Firebase
   // 4.3 Validadores
   bool isValidEmail(String email) {
     final re = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
@@ -57,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // 4.4 Dar acción al botón
-  void _onLogin() {
+  Future<void> _onLogin() async { //Conectando el botón Login con Firebase 
     // Protección Anti-Spam (Si la animación/proceso está activo, ignora clics)
     if (_isLoading) return;
 
@@ -88,10 +92,28 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // 4.9 Activar triggers
     if (eError == null && pError == null) {
-      _trigSuccess?.fire();
-    } else {
-      _trigFail?.fire();
-    }
+      widget.onSignInInProgress?.call(true);  //Mantener el login visible para que se vea la reacción del osito
+  try {   //Le pido a Firebase que compruebe el correo y la contraseña
+    await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: email,
+      password: pass,
+    );
+
+    if (!mounted) return; 
+    _trigSuccess?.fire(); //Si Firebase acepta el accesso, activo la celebración del oso
+
+    //Si Firebase devuelve un error, activo la reacción y se muestra un aviso
+  } on FirebaseAuthException {
+    if (!mounted) return;
+    _trigFail?.fire();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('No se pudo iniciar sesión.')),
+    );
+  }
+} else {
+  _trigFail?.fire();
+}
 
     // Desbloquea la UI tras 2 segundos de animación
     Timer(const Duration(seconds: 2), () {
@@ -99,6 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() {
           _isLoading = false;
         });
+        widget.onSignInInProgress?.call(false); //Ya pasó el tiempo de la animación, si hay sesión, la app puede mostrar el Inicioo
       }
     });
   }
