@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
+import 'signup_screen.dart';
 import 'dart:async'; // 3.1 Importar el timer
 import 'package:firebase_auth/firebase_auth.dart'; //Conectando el botón con firebase
 
@@ -356,19 +357,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text("Don't have an account? "),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text(
-                          'Sign up',
-                          style: TextStyle(
-                            color: Colors.black,
-                            // Subrayado
-                            decoration: TextDecoration.underline,
-                            // Negritas
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                        TextButton(
+                          onPressed: () {
+                              Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                        builder: (_) => const SignUpScreen(),
+                       ),
+                       );
+                      },
+                   child: const Text(
+                   'Sign up',
+                     style: TextStyle(
+                    color: Colors.black,
+                      decoration: TextDecoration.underline,
+                       fontWeight: FontWeight.bold,
+                    ),
+                   ),
+                   ),
                     ],
                   ),
                 ),
