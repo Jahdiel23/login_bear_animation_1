@@ -62,6 +62,74 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // 4.4 Dar acción al botón
+  Future<void> _recuperarContrasena() async {
+    if (_isLoading) return;
+
+    final formulario = GlobalKey<FormState>();
+    var correo = _emailCtrl.text.trim();
+
+    // Abro una ventana para que el usuario confirme o cambie su correo
+    final confirmado = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Recuperar contraseña'),
+        content: Form(
+          key: formulario,
+          child: TextFormField(
+            initialValue: correo,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(labelText: 'Correo electrónico'),
+            onChanged: (value) => correo = value.trim(),
+            validator: (value) => isValidEmail((value ?? '').trim())
+                ? null
+                : 'Escribe un correo válido.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              //Reviso que el correo tenga un formato válido antes de continuar
+              if (formulario.currentState!.validate()) {
+                Navigator.of(dialogContext).pop(correo);
+              }
+            },
+            child: const Text('Enviar enlace'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || confirmado == null || _isLoading) return;
+    setState(() => _isLoading = true);
+
+    const confirmacion = 'Si hay una cuenta con ese correo, recibirás un '
+        'enlace. Revisa tu bandeja de entrada y spam.';
+    var mensaje = confirmacion;
+    try {
+      // Le pido a Firebase que envíe al correo un enlace para cambiar la contraseña
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: confirmado);
+    } on FirebaseAuthException catch (error) {
+      mensaje = switch (error.code) {
+        'user-not-found' => confirmacion,
+        'network-request-failed' => 'Revisa tu conexión e inténtalo de nuevo.',
+        'too-many-requests' => 'Demasiadas solicitudes. Inténtalo más tarde.',
+        _ => 'No se pudo solicitar el enlace. Inténtalo de nuevo.',
+      };
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+
+    if (!mounted) return;
+    //Muestro el aviso de la solicitud o el mensaje de error
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje)),
+    );
+  }
+
   Future<void> _onLogin() async { //Conectando el botón Login con Firebase 
     // Protección Anti-Spam (Si la animación/proceso está activo, ignora clics)
     if (_isLoading) return;
@@ -319,9 +387,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         const Text('Remember me'),
                       ],
                     ),
-                    const Text(
-                      'Forgot password?',
-                      style: TextStyle(decoration: TextDecoration.underline),
+                    Flexible(
+                      child: TextButton(
+                        //Abro la recuperación y desactivo el boton mientras se procesa la solicitud
+                        onPressed: _isLoading ? null : _recuperarContrasena,
+                        child: const Text(
+                          'Forgot password?',
+                          style: TextStyle(decoration: TextDecoration.underline),
+                        ),
+                      ),
                     ),
                   ],
                 ),
