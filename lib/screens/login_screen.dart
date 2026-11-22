@@ -130,70 +130,88 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Future<void> _onLogin() async { //Conectando el botón Login con Firebase 
-    // Protección Anti-Spam (Si la animación/proceso está activo, ignora clics)
+ 
+  Future<void> _onLogin() async {
+    // Evitar varios clics mientras se procesa el inicio de sesión
     if (_isLoading) return;
 
-    setState(() {
-      _isLoading = true; // Bloquea clics futuros
-    });
-
-    // De lo que escribió el usuario, quitar espacios en blanco
+    // Obtener los datos escritos por el usuario
     final email = _emailCtrl.text.trim();
     final pass = _passCtrl.text;
 
-    // 4.6 Evaluar los errores
+    // 4.6 Validar el formato de los campos
     final eError = isValidEmail(email) ? null : "Invalid email";
     final pError = isValidPassword(pass) ? null : "Invalid password";
 
-    // 4.7 Avisar que hubo cambios
+    // 4.7 Mostrar los errores en pantalla
     setState(() {
       emailError = eError;
       passError = pError;
     });
 
-    // 4.8 Cerrar el teclado y bajar las manos 
-    FocusScope.of(context).unfocus(); // Quita el foco
+    // 4.8 Cerrar el teclado y actualizar la animación
+    FocusScope.of(context).unfocus();
     _typingDebounce?.cancel();
     _isChecking?.change(false);
     _isHandsUp?.change(false);
     _numLook?.value = 50.0;
 
-    // 4.9 Activar triggers
-    if (eError == null && pError == null) {
-      widget.onSignInInProgress?.call(true);  //Mantener el login visible para que se vea la reacción del osito
-  try {   //Le pido a Firebase que compruebe el correo y la contraseña
-    await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: email,
-      password: pass,
-    );
+    // 4.9 Si el formato es inválido, activar fallo y detenerse
+    if (eError != null || pError != null) {
+      _trigFail?.fire();
+      return;
+    }
 
-    if (!mounted) return; 
-    _trigSuccess?.fire(); //Si Firebase acepta el accesso, activo la celebración del oso
+    // 5.4 Activar el indicador de carga
+    setState(() {
+      _isLoading = true;
+    });
 
-    //Si Firebase devuelve un error, activo la reacción y se muestra un aviso
-  } on FirebaseAuthException {
-    if (!mounted) return;
-    _trigFail?.fire();
+    // Mantener visible el login mientras se procesa
+    widget.onSignInInProgress?.call(true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('No se pudo iniciar sesión.')),
-    );
-  }
-} else {
-  _trigFail?.fire();
-}
+    try {
+      // 5.5 Esperar para que se vea el indicador de carga
+      await Future.delayed(const Duration(seconds: 2));
 
-    // Desbloquea la UI tras 2 segundos de animación
-    Timer(const Duration(seconds: 2), () {
+      // Autenticar al usuario con Firebase
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: pass,
+      );
+
+      if (!mounted) return;
+
+      // Firebase aceptó las credenciales: celebrar con el osito
+_trigSuccess?.fire();
+
+// Dar tiempo para que se reproduzca la animación
+await Future.delayed(const Duration(seconds: 2));
+
+    } on FirebaseAuthException {
+      if (!mounted) return;
+
+      // Firebase rechazó las credenciales
+      _trigFail?.fire();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo iniciar sesión.'),
+        ),
+      );
+
+    } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
-        widget.onSignInInProgress?.call(false); //Ya pasó el tiempo de la animación, si hay sesión, la app puede mostrar el Inicioo
+
+        // Permitir que AuthGate muestre la pantalla correspondiente
+        widget.onSignInInProgress?.call(false);
       }
-    });
+    }
   }
+
 
   // 2.2 Listeners (escuchadores de foco)
   @override

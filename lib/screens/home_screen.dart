@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'products_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -10,17 +11,20 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Inicio'),
+        title: const Text('Productos'),
         actions: [
           TextButton(
             onPressed: () async {
               try {
-                // Se cierra la sesión en Firebase, AuthGate detecta el cambio y muestra el login
+                // Cerrar sesión en Firebase
                 await FirebaseAuth.instance.signOut();
               } on FirebaseAuthException {
                 if (!context.mounted) return;
+
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('No se pudo cerrar sesión.')),
+                  const SnackBar(
+                    content: Text('No se pudo cerrar sesión.'),
+                  ),
                 );
               }
             },
@@ -28,7 +32,23 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(child: Text('Hola, ${user?.email ?? ''} 🐻')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              'Hola, ${user?.email ?? ''} 🐻',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const Expanded(
+            child: ProductsScreen(),
+          ),
+        ],
+      ),
     );
   }
 }
