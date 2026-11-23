@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ProductsScreen extends StatefulWidget {
@@ -14,7 +15,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
   late Future<List<dynamic>> _productsFuture;
 
   // Dirección del backend desde el emulador Android
-  final String apiUrl = 'http://10.0.2.2:8081/products';
+  final String apiUrl = kIsWeb
+    ? 'http://localhost:8081/products'
+    : 'http://10.0.2.2:8081/products';
 
   @override
   void initState() {
